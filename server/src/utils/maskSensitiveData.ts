@@ -12,7 +12,7 @@ export const MASKED_COOKIE_VALUE = '***hidden***';
 /**
  * Mask cookie - replace with placeholder
  */
-export function maskCookie(cookie: string): string {
+export function maskCookie(cookie: string | null | undefined): string {
   if (!cookie) {
     return '';
   }
@@ -26,29 +26,25 @@ export function maskCookie(cookie: string): string {
  *   IPv6: 2602:294:0:dc:1234:4321:5019:0001 -> 2602:****:****:****:****:****:****:0001
  *   IPv4: 192.168.1.100 -> 192.***.***.100
  */
-export function maskIp(ip: string): string {
+export function maskIp(ip: string | null | undefined): string {
   if (!ip) {
     return '';
   }
 
+  // IPv6
   if (ip.includes(':')) {
     const segments = ip.split(':');
-
-    if (segments.length >= 3) {
-      return segments
-        .map((segment, index) => {
-          if (segment === '' || index === 0 || index === segments.length - 1) {
-            return segment;
-          }
-          return '****';
-        })
-        .join(':');
+    if (segments.length > 2) {
+      const first = segments[0];
+      const last = segments[segments.length - 1];
+      const masked = Array(segments.length - 2).fill('****');
+      return [first, ...masked, last].join(':');
     }
   }
 
+  // IPv4
   if (ip.includes('.')) {
     const segments = ip.split('.');
-
     if (segments.length === 4) {
       return `${segments[0]}.***.***.${segments[3]}`;
     }
@@ -61,10 +57,12 @@ export function maskIp(ip: string): string {
  * Mask sensitive VPS data for API responses
  */
 export function maskVpsData(vps: VpsData): SafeVpsData {
+  const maskedIp = maskIp(vps.ip);
+
   return {
     ...vps,
     cookie: maskCookie(vps.cookie),
-    ip: vps.ip ? maskIp(vps.ip) : null
+    ip: maskedIp === '' ? null : maskedIp
   };
 }
 
