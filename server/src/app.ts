@@ -11,6 +11,7 @@ import {
 } from './vpsRepository';
 import { refreshAllVps, refreshVpsById } from './refreshService';
 import { VpsCreateInput, VpsUpdateInput } from './types';
+import { maskVpsData, maskVpsDataArray } from './utils/maskSensitiveData';
 
 const app = express();
 
@@ -20,10 +21,29 @@ app.use(express.json());
 app.get('/api/vps', async (_req, res) => {
   try {
     const vps = await getAllVps();
-    res.json(vps);
+    res.json(maskVpsDataArray(vps));
   } catch (error) {
     console.error('Failed to load VPS records:', error);
     res.status(500).json({ message: 'Failed to load VPS records.' });
+  }
+});
+
+app.get('/api/vps/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: 'Invalid VPS id' });
+  }
+
+  try {
+    const vps = await getVpsById(id);
+    if (!vps) {
+      return res.status(404).json({ message: 'VPS not found' });
+    }
+
+    res.json(maskVpsData(vps));
+  } catch (error) {
+    console.error(`Failed to load VPS ${id}:`, error);
+    res.status(500).json({ message: 'Failed to load VPS.' });
   }
 });
 
@@ -39,14 +59,14 @@ app.post('/api/vps', async (req, res) => {
 
     try {
       const updated = await refreshVpsById(id);
-      return res.status(201).json(updated);
+      return res.status(201).json(maskVpsData(updated));
     } catch (error) {
       console.error('Failed to scrape VPS after creation:', error);
       const created = await getVpsById(id);
       if (!created) {
         return res.status(500).json({ message: 'VPS was created but could not be loaded.' });
       }
-      return res.status(201).json(created);
+      return res.status(201).json(maskVpsData(created));
     }
   } catch (error) {
     console.error('Failed to create VPS record:', error);
@@ -72,14 +92,14 @@ app.put('/api/vps/:id', async (req, res) => {
 
     try {
       const updated = await refreshVpsById(id);
-      return res.json(updated);
+      return res.json(maskVpsData(updated));
     } catch (error) {
       console.error('Failed to scrape VPS after update:', error);
       const refreshed = await getVpsById(id);
       if (!refreshed) {
         return res.status(500).json({ message: 'Failed to reload VPS after update.' });
       }
-      return res.json(refreshed);
+      return res.json(maskVpsData(refreshed));
     }
   } catch (error) {
     console.error(`Failed to update VPS ${id}:`, error);
@@ -115,7 +135,7 @@ app.post('/api/vps/:id/refresh', async (req, res) => {
 
   try {
     const updated = await refreshVpsById(id);
-    res.json(updated);
+    res.json(maskVpsData(updated));
   } catch (error) {
     console.error(`Failed to refresh VPS ${id}:`, error);
     res.status(500).json({ message: 'Failed to refresh VPS' });
@@ -125,7 +145,7 @@ app.post('/api/vps/:id/refresh', async (req, res) => {
 app.post('/api/vps/refresh-all', async (_req, res) => {
   try {
     const refreshed = await refreshAllVps();
-    res.json(refreshed);
+    res.json(maskVpsDataArray(refreshed));
   } catch (error) {
     console.error('Failed to refresh all VPS records:', error);
     res.status(500).json({ message: 'Failed to refresh VPS records' });

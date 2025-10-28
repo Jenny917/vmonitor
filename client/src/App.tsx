@@ -28,18 +28,19 @@ interface VpsFormData {
 }
 
 const OPS_OPTIONS = ['Hax'];
+const MASKED_COOKIE_VALUE = '***hidden***';
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 const TABLE_HEADERS = [
-  'Name',
-  'Operator',
-  'Cookie Status',
-  'Expiry Time',
-  'Last Query Time',
-  'Location',
-  'Creation Date',
-  'IP Address',
-  'Actions'
-];
+  { key: 'name', label: 'Name' },
+  { key: 'ops', label: 'Operator' },
+  { key: 'status', label: 'Cookie Status' },
+  { key: 'expiry', label: 'Expiry Time' },
+  { key: 'updated', label: 'Last Query Time' },
+  { key: 'location', label: 'Location' },
+  { key: 'creation', label: 'Creation Date' },
+  { key: 'ip', label: 'IP Address', tooltip: 'IP and cookies are hidden for security' },
+  { key: 'actions', label: 'Actions' }
+] as const;
 
 function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
@@ -97,12 +98,14 @@ function VpsForm({
   initial,
   onSubmit,
   onCancel,
-  submitting
+  submitting,
+  isEditing
 }: {
   initial: VpsFormData;
   onSubmit: (data: VpsFormData) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
+  isEditing: boolean;
 }) {
   const [form, setForm] = useState<VpsFormData>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -120,18 +123,23 @@ function VpsForm({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    if (!form.name.trim()) {
+    const trimmedName = form.name.trim();
+    const trimmedCookie = form.cookie.trim();
+
+    if (!trimmedName) {
       setError('Name is required.');
       return;
     }
 
-    if (!form.cookie.trim()) {
+    if (!isEditing && !trimmedCookie) {
       setError('Cookie is required.');
       return;
     }
 
+    setError(null);
+
     try {
-      await onSubmit({ ...form, name: form.name.trim(), cookie: form.cookie.trim() });
+      await onSubmit({ name: trimmedName, ops: form.ops, cookie: trimmedCookie });
     } catch (err) {
       console.error(err);
       setError('Failed to save VPS details.');
@@ -191,7 +199,8 @@ function VpsForm({
           className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
         <p className="text-xs text-slate-500">
-          Ensure the cookie remains valid so the system can access the VPS information page.
+          Stored cookies appear as <span className="font-mono">{MASKED_COOKIE_VALUE}</span>. Enter a new cookie to
+          replace the existing value. Ensure the cookie remains valid so the system can access the VPS information page.
         </p>
       </div>
 
@@ -228,7 +237,7 @@ export default function App() {
   const defaultFormData = useMemo<VpsFormData>(() => ({
     name: editing?.name ?? '',
     ops: editing?.ops ?? OPS_OPTIONS[0],
-    cookie: editing?.cookie ?? ''
+    cookie: editing ? MASKED_COOKIE_VALUE : ''
   }), [editing]);
 
   const loadVps = async () => {
@@ -306,6 +315,18 @@ export default function App() {
 
     try {
       const isEdit = Boolean(editing);
+      const trimmedName = formData.name.trim();
+      const trimmedCookie = formData.cookie.trim();
+
+      const payload: Partial<VpsFormData> & Pick<VpsFormData, 'name' | 'ops'> = {
+        name: trimmedName,
+        ops: formData.ops
+      };
+
+      if (!isEdit || (trimmedCookie && trimmedCookie !== MASKED_COOKIE_VALUE)) {
+        payload.cookie = trimmedCookie;
+      }
+
       const response = await fetch(
         apiUrl(isEdit ? `/api/vps/${editing?.id}` : '/api/vps'),
         {
@@ -313,7 +334,7 @@ export default function App() {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(payload)
         }
       );
 
@@ -411,11 +432,22 @@ export default function App() {
               <tr>
                 {TABLE_HEADERS.map((header) => (
                   <th
-                    key={header}
+                    key={header.key}
                     scope="col"
                     className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                    title={header.tooltip}
                   >
-                    {header}
+                    <span className="inline-flex items-center gap-2">
+                      {header.label}
+                      {header.tooltip ? (
+                        <span
+                          className="text-xs font-normal text-slate-400"
+                          aria-label={header.tooltip}
+                        >
+                          ⓘ
+                        </span>
+                      ) : null}
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -484,7 +516,13 @@ export default function App() {
 
       {showForm ? (
         <Modal title={editing ? 'Edit VPS' : 'Add VPS'} onClose={closeForm}>
-          <VpsForm initial={defaultFormData} onSubmit={handleSubmit} onCancel={closeForm} submitting={submitting} />
+          <VpsForm
+            initial={defaultFormData}
+            onSubmit={handleSubmit}
+            onCancel={closeForm}
+            submitting={submitting}
+            isEditing={Boolean(editing)}
+          />
         </Modal>
       ) : null}
 

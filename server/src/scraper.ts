@@ -91,12 +91,16 @@ function parseDateToMalaysia(dateText: string): DateTime | null {
 }
 
 export async function scrapeVpsInfo(cookie: string): Promise<ScrapeResult> {
+  console.log('Scraping VPS info... Cookie provided:', cookie ? 'Yes (hidden)' : 'No');
+
   const response = await fetch(TARGET_URL, {
     headers: {
       ...BASE_HEADERS,
       cookie
     }
   });
+
+  console.log('Scrape response status:', response.status);
 
   const updateTime = DateTime.now().setZone(MALAYSIA_TZ).toISO();
 
@@ -113,12 +117,15 @@ export async function scrapeVpsInfo(cookie: string): Promise<ScrapeResult> {
   }
 
   const html = await response.text();
+  console.log('Scraped HTML length:', html.length);
   const $ = load(html);
 
   const validUntilText = extractValue($, 'Valid until');
   const ipv6 = extractValue($, 'IPv6');
   const location = extractValue($, 'Location');
   const creationDateText = extractValue($, 'VPS Creation Date');
+
+  console.log('IPv6 present in response:', ipv6 ? 'Yes' : 'No');
 
   if (!validUntilText || !ipv6 || !location || !creationDateText) {
     return {
