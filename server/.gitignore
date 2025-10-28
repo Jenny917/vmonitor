@@ -16,8 +16,6 @@ monitor.db
 # Build output
 build/
 dist/
-client/dist/
-server/dist/
 
 # Logs (might contain sensitive info)
 *.log
@@ -25,7 +23,6 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
 # OS files
 .DS_Store

@@ -101,6 +101,33 @@ The SQLite database (`monitor.db`) will be created automatically under the `serv
 - All timestamps are stored as ISO-8601 strings in MYT (`Asia/Kuala_Lumpur`) and formatted on the frontend.
 - The dashboard offers CRUD actions, manual refresh controls, and displays cookie validity, renewal dates, locations, creation dates, and IPv6 addresses for each VPS.
 
+## Security
+
+This application handles sensitive data (VPS cookies and IP addresses) with the following security measures:
+
+### Data Protection
+- **Cookies** - Never exposed in API responses (shown as `***hidden***`)
+- **IP Addresses** - Masked in API responses (e.g., `2602:****:****:****:****:****:****:0001`)
+- **Database** - Contains full data but never committed to git
+- **Logs** - Sensitive values are never logged to console
+
+### Best Practices
+- **Never commit `.env` files** - they contain sensitive configuration
+- **Never commit `.db` files** - they contain your VPS cookies and IPs
+- **Never share screenshots** - of DevTools Network tab or database contents
+- **API responses** - All sensitive data is automatically masked
+
+### What to check before committing:
+```bash
+git status
+# Should NOT see: .env, *.db files
+```
+
+### Masked Data Format
+- **Cookie**: `***hidden***`
+- **IPv6**: `2602:****:****:****:****:****:****:0001` (first and last segment only)
+- **IPv4**: `192.***.***.100` (first and last octet only)
+
 ## License
 
 MIT © 2024 VPS Monitoring System
