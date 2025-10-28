@@ -5,7 +5,7 @@ Full-stack monitoring dashboard for VPS instances hosted on Hax.co.id. The syste
 ## Tech Stack
 
 - **Backend**: Node.js, Express, TypeScript
-- **Database**: SQLite (via `better-sqlite3`)
+- **Database**: SQLite (via `sql.js`)
 - **Scraping**: `node-fetch`, `cheerio`, `luxon`
 - **Scheduler**: `node-cron`
 - **Frontend**: React (Vite + TypeScript), Tailwind CSS
@@ -15,8 +15,8 @@ Full-stack monitoring dashboard for VPS instances hosted on Hax.co.id. The syste
 ```
 /home/engine/project
 ├── client   # React + Vite frontend
-├── server   # Express + TypeScript backend
-└── monitor.db (created automatically on first run)
+└── server   # Express + TypeScript backend
+    └── monitor.db (created automatically on first run)
 ```
 
 ## Prerequisites
@@ -52,7 +52,7 @@ cd client
 npm run dev
 ```
 
-The SQLite database (`monitor.db`) will be created automatically in the project root with the required schema on first run.
+The SQLite database (`monitor.db`) will be created automatically under the `server/` directory with the required schema on first run.
 
 ## Production Build
 
