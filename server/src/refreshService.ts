@@ -8,7 +8,7 @@ import {
 import { VpsRecord } from './types';
 
 export async function refreshVpsById(id: number): Promise<VpsRecord> {
-  const vps = getVpsById(id);
+  const vps = await getVpsById(id);
   if (!vps) {
     throw new Error('VPS not found');
   }
@@ -16,7 +16,7 @@ export async function refreshVpsById(id: number): Promise<VpsRecord> {
   const result = await scrapeVpsInfo(vps.cookie);
 
   if (result.cookieStatus === 'Normal') {
-    updateAfterScrapeSuccess(id, {
+    await updateAfterScrapeSuccess(id, {
       validUntil: result.validUntil,
       ip: result.ip,
       location: result.location,
@@ -25,12 +25,14 @@ export async function refreshVpsById(id: number): Promise<VpsRecord> {
     });
   } else {
     console.warn(
-      `Scrape returned ${result.cookieStatus} for VPS ${id}${result.error ? `: ${result.error}` : ''}`
+      `Scrape returned ${result.cookieStatus} for VPS ${id}${
+        result.error ? `: ${result.error}` : ''
+      }`
     );
-    updateAfterScrapeFailure(id, result.updateTime);
+    await updateAfterScrapeFailure(id, result.updateTime);
   }
 
-  const updated = getVpsById(id);
+  const updated = await getVpsById(id);
   if (!updated) {
     throw new Error('Failed to load updated VPS record');
   }
@@ -39,7 +41,7 @@ export async function refreshVpsById(id: number): Promise<VpsRecord> {
 }
 
 export async function refreshAllVps(): Promise<VpsRecord[]> {
-  const vpsList = getAllVps();
+  const vpsList = await getAllVps();
   const refreshed: VpsRecord[] = [];
 
   for (const vps of vpsList) {

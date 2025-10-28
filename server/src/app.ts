@@ -17,9 +17,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/vps', (_req, res) => {
-  const vps = getAllVps();
-  res.json(vps);
+app.get('/api/vps', async (_req, res) => {
+  try {
+    const vps = await getAllVps();
+    res.json(vps);
+  } catch (error) {
+    console.error('Failed to load VPS records:', error);
+    res.status(500).json({ message: 'Failed to load VPS records.' });
+  }
 });
 
 app.post('/api/vps', async (req, res) => {
@@ -29,18 +34,23 @@ app.post('/api/vps', async (req, res) => {
     return res.status(400).json({ message: 'name, ops, and cookie are required.' });
   }
 
-  const id = createVps({ name, ops, cookie });
-
   try {
-    const updated = await refreshVpsById(id);
-    res.status(201).json(updated);
-  } catch (error) {
-    console.error('Failed to scrape VPS after creation:', error);
-    const created = getVpsById(id);
-    if (!created) {
-      return res.status(500).json({ message: 'VPS was created but could not be loaded.' });
+    const id = await createVps({ name, ops, cookie });
+
+    try {
+      const updated = await refreshVpsById(id);
+      return res.status(201).json(updated);
+    } catch (error) {
+      console.error('Failed to scrape VPS after creation:', error);
+      const created = await getVpsById(id);
+      if (!created) {
+        return res.status(500).json({ message: 'VPS was created but could not be loaded.' });
+      }
+      return res.status(201).json(created);
     }
-    res.status(201).json(created);
+  } catch (error) {
+    console.error('Failed to create VPS record:', error);
+    return res.status(500).json({ message: 'Failed to create VPS record.' });
   }
 });
 
@@ -51,39 +61,50 @@ app.put('/api/vps/:id', async (req, res) => {
   }
 
   const { name, ops, cookie } = req.body as VpsUpdateInput;
-  const existing = getVpsById(id);
-  if (!existing) {
-    return res.status(404).json({ message: 'VPS not found' });
-  }
-
-  updateVps(id, { name, ops, cookie });
 
   try {
-    const updated = await refreshVpsById(id);
-    res.json(updated);
-  } catch (error) {
-    console.error('Failed to scrape VPS after update:', error);
-    const refreshed = getVpsById(id);
-    if (!refreshed) {
-      return res.status(500).json({ message: 'Failed to reload VPS after update.' });
+    const existing = await getVpsById(id);
+    if (!existing) {
+      return res.status(404).json({ message: 'VPS not found' });
     }
-    res.json(refreshed);
+
+    await updateVps(id, { name, ops, cookie });
+
+    try {
+      const updated = await refreshVpsById(id);
+      return res.json(updated);
+    } catch (error) {
+      console.error('Failed to scrape VPS after update:', error);
+      const refreshed = await getVpsById(id);
+      if (!refreshed) {
+        return res.status(500).json({ message: 'Failed to reload VPS after update.' });
+      }
+      return res.json(refreshed);
+    }
+  } catch (error) {
+    console.error(`Failed to update VPS ${id}:`, error);
+    return res.status(500).json({ message: 'Failed to update VPS.' });
   }
 });
 
-app.delete('/api/vps/:id', (req, res) => {
+app.delete('/api/vps/:id', async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id)) {
     return res.status(400).json({ message: 'Invalid VPS id' });
   }
 
-  const existing = getVpsById(id);
-  if (!existing) {
-    return res.status(404).json({ message: 'VPS not found' });
-  }
+  try {
+    const existing = await getVpsById(id);
+    if (!existing) {
+      return res.status(404).json({ message: 'VPS not found' });
+    }
 
-  deleteVps(id);
-  res.status(204).send();
+    await deleteVps(id);
+    return res.status(204).send();
+  } catch (error) {
+    console.error(`Failed to delete VPS ${id}:`, error);
+    return res.status(500).json({ message: 'Failed to delete VPS.' });
+  }
 });
 
 app.post('/api/vps/:id/refresh', async (req, res) => {
